@@ -1,0 +1,110 @@
+import pandas as pd
+
+# Load the dataset with tab-separated values
+file_path = '/mnt/data/rnsas cali dataset on nurse shortage.csv'
+data = pd.read_csv(file_path, sep='\t')
+
+# Display the first few rows of the dataset
+data.head()
+
+# Summary statistics for numerical columns
+summary_stats = data.describe()
+
+# Correlation analysis for numerical columns
+correlation_matrix = data[['Employed RNs', 'Population', 'RN_LIC']].corr()
+
+import matplotlib.pyplot as plt
+
+# Set up the figure for multiple subplots
+fig, axs = plt.subplots(4, 3, figsize=(15, 12))
+
+# Flatten the axes array to make it easier to loop through
+axs = axs.flatten()
+
+# Plot each column against the 'RN Area Name'
+columns = ['Population', 'RN_LIC', 'RN_EMPRATE', 'Employed RNs', 'Ratio', 
+           'Target Ratio', 'RNSA', 'Severity', 'Effective Date']
+
+for i, column in enumerate(columns):
+    if data[column].dtype == 'object':  # For categorical data
+        data[column].value_counts().plot(kind='bar', ax=axs[i])
+        axs[i].set_title(f'{column} Distribution')
+        axs[i].set_ylabel('Count')
+    else:  # For numerical data
+        data[column].plot(kind='hist', ax=axs[i], bins=20, alpha=0.7)
+        axs[i].set_title(f'{column} Distribution')
+        axs[i].set_xlabel(column)
+        axs[i].set_ylabel('Frequency')
+
+# Adjust layout for readability
+plt.tight_layout()
+plt.show()
+
+import scipy.stats as stats
+
+# Clean the data by removing rows with missing values in Severity or RNSA
+cleaned_data = data.dropna(subset=['Severity', 'RNSA'])
+
+# Group the data by 'RNSA' and 'Severity', then calculate the means of 'Employed RNs'
+groups = cleaned_data.groupby(['RNSA', 'Severity'])['Employed RNs'].apply(list)
+
+# Conduct one-way ANOVA for 'Employed RNs' across different 'Severity' levels
+anova_results = stats.f_oneway(*groups)
+
+# Display ANOVA results
+anova_results
+
+# Create a new dataset with selected columns: Employed RNs, Population, location, RNSA, Severity, RN_LIC
+selected_columns = ['Employed RNs', 'Population', 'RN Area Name', 'RNSA', 'Severity', 'RN_LIC']
+new_data = data[selected_columns]
+
+# Create an exploratory analysis summary table
+exploratory_analysis = {
+    "Statistic": ["Mean", "Min", "Max", "Standard Deviation", "Correlation with Population", "Correlation with RN_LIC"],
+    "Employed RNs": [
+        summary_stats['Employed RNs']['mean'],
+        summary_stats['Employed RNs']['min'],
+        summary_stats['Employed RNs']['max'],
+        summary_stats['Employed RNs']['std'],
+        correlation_matrix['Employed RNs']['Population'],
+        correlation_matrix['Employed RNs']['RN_LIC']
+    ],
+    "Population": [
+        summary_stats['Population']['mean'],
+        summary_stats['Population']['min'],
+        summary_stats['Population']['max'],
+        summary_stats['Population']['std'],
+        correlation_matrix['Population']['Employed RNs'],
+        correlation_matrix['Population']['RN_LIC']
+    ],
+    "RN_LIC": [
+        summary_stats['RN_LIC']['mean'],
+        summary_stats['RN_LIC']['min'],
+        summary_stats['RN_LIC']['max'],
+        summary_stats['RN_LIC']['std'],
+        correlation_matrix['RN_LIC']['Employed RNs'],
+        correlation_matrix['RN_LIC']['Population']
+    ],
+    "RNSA Distribution": [rns_distribution["Yes"], rns_distribution["No"], "", "", "", ""],
+    "Severity Distribution": [severity_distribution["Low"], severity_distribution["Medium"], severity_distribution["High"], "", "", ""]
+}
+
+# Convert the dictionary to a DataFrame for better display
+exploratory_df = pd.DataFrame(exploratory_analysis)
+
+# Calculate the RNs to population ratio
+new_data['RN_to_Population_Ratio'] = new_data['RN_LIC'] / new_data['Population']
+
+import ace_tools as tools
+
+# Display the dataset with RN to Population Ratio
+tools.display_dataframe_to_user(name="RN to Population Ratio", dataframe=new_data[['RN Area Name', 'RN_to_Population_Ratio']])
+
+# Display the Exploratory Analysis Table
+tools.display_dataframe_to_user(name="Exploratory Analysis Table", dataframe=exploratory_df)
+
+
+
+
+
+
